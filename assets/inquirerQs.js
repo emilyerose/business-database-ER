@@ -10,7 +10,7 @@ const basicvalidator = (response) => {
 
 const salaryvalidator = (response) => {
     //validates salary
-    if (!response) {
+    if (!response || isNaN(parseFloat(response))) {
         return "Please enter a number for salary."
     }
     return true
@@ -21,7 +21,7 @@ const normalizeCaps = (response) => {
     response = response.trim();
     response = response.toLowerCase();
     const words = response.split(' ');
-    return words.map(word => word[0] + word.substr(1)).join(' ')
+    return words.map(word => word[0].toUpperCase() + word.substr(1)).join(' ')
 }
 
 exports.menuPrompt = [{
@@ -30,6 +30,20 @@ exports.menuPrompt = [{
     message: 'What would you like to do?',
     choices: mainMenu
 }]
+
+exports.updateEmployeeRolePrompt = (employeeList) => {
+    [{
+        type: 'list',
+        name: 'employeename',
+        message: 'Whose role would you like to update?',
+        choices: employeeList
+    },
+    {type: 'input',
+    name: 'role',
+    message: 'What is the title of the new role?',
+    validate: basicvalidator,
+    filter: normalizeCaps}]
+}
 
 exports.employeePrompt = [
     {type: 'input',
@@ -72,7 +86,10 @@ exports.rolePrompt = [{
     type: 'input',
     name: 'salary',
     message: 'Please enter the role\'s corresponding salary:',
-    validate: salaryvalidator
+    validate: salaryvalidator,
+    filter: (response) => {
+        return parseFloat(response);
+    }
 },
 {
     type: 'input',
