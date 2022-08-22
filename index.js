@@ -63,6 +63,16 @@ function seeRoles() {
     })
 }
 
+function seeEmployees() {
+    //this doesn't get the manager name (if it exists) because hurgleblurgle
+    db.query(`SELECT employee.id, employee.first_name, employee.last_name, roles.title, roles.salary, department.dept_name AS department FROM
+    employee LEFT JOIN roles ON employee.role_id = roles.id
+    LEFT JOIN department ON roles.department_id = department.id`, (err, result) => {
+        err ? console.error(err) : console.table(result)
+        loadMainMenu();
+    })
+}
+
 function addDept() {
     inquirer.prompt(promptQs.deptPrompt)
     .then(response => {
@@ -79,7 +89,7 @@ async function addRole() {
     const {role,salary,department} = await inquirer.prompt(promptQs.rolePrompt)
     db.promise().query(deptsql, department) 
     .then(result => {
-        if (!result[0]){
+        if (result[0].length===0){
             throw Error('There is no department matching this name in the database. Please add this department before referencing it with a role.')
         }
         //note that result[0] console logs to [ { id: 3 } ] 
@@ -101,29 +111,78 @@ async function addRole() {
         loadMainMenu();
     })
 }
-        
+     
+async function addEmployee() {
+    try {
+        const {firstname,lastname,role,manager} = await inquirer.prompt(promptQs.employeePrompt);
+        let idquery = await db.promise().query(`SELECT id FROM roles WHERE title = ?`, role)
+        if (idquery[0].length===0){
+            throw Error('There is no role matching this name in the database. Please add this role before referencing it with an employee.')
+        }
+        idquery = idquery[0][0].id
+        let managerQuery;
+        let managerName;
+        //if no manager is entered, the person will have default 'null' manager, but if a manager is entered, get the ID
+        if (manager){
+            managerName = manager.split(" ")
+            //if only one name was given, ask for two
+            if (managerName.length<2) throw Error('Please enter a first and last name for the manager.')
+            managerQuery =  await db.promise().query(`SELECT id FROM employee WHERE first_name = ? AND last_name = ?`, managerName)
+            //if no matching manager is found, throw an error
+            if (managerQuery[0].length===0){
+                throw Error('There is no manager matching this name in the database. Please add this manager as an employee before referencing them.')
+            }
+            managerQuery = managerQuery[0][0].id
+        }
+        else managerQuery = null;
+        db.query(`INSERT INTO employee (first_name,last_name,role_id,manager_id) VALUES (?)`,[[firstname,lastname,idquery,managerQuery]], (err, result) => {
+            if (err) {
+                console.error(err)
+            }
+            else {
+                console.log(`Added ${firstname} ${lastname} to employee table.`)
+            }
+            loadMainMenu();
+    })
+}
+    catch {err => {
+        console.error(err)
+        loadMainMenu();
+    }}
+
+}
 
 async function updateRole() {
     //need to promisify this too
     //get all employees (arr of objects)
-    const employees = await db.query(`SELECT * FROM employee`);
-    if (!employees) {
-        console.log('There are no employees in the database to update.');
-        loadMainMenu();
-        return;
+    let employees;
+    try {
+        employees = await db.promise().query(`SELECT * FROM employee`);
+        if (employees[0].length === 0) {
+            throw Error('There are no employees in the database to update.');
+        }
     }
-    let employeeList;
+    catch(err) {
+        console.error(err)
+        //HOW DO I EXIT HELP
+        return}
+
+    let employeeList=[];
     //push each employee's first and last name as a string to employeeList
-    employees.forEach(entry => employeeList.push(`${entry.first_name} ${entry.last_name}`))
-    inquirer.prompt(promptQs.updateEmployeeRolePrompt(employeeList))
-    .then(response => {
+    employees[0].forEach(entry => employeeList.push(`${entry.first_name} ${entry.last_name}`))
+    const updateEmpQs = promptQs.updateEmployeeRolePrompt(employeeList);
+    console.log(updateEmpQs)
+    const response = await inquirer.prompt(updateEmpQs)
         //if anyone has two word first or last names this gets messed up but i don't see any other way to do it given the constraints
-        const [firstname,lastname] = response.employeename.split(" ")
-        db.query(`UPDATE employee SET role = ? WHERE first_name = ? AND last_name = ?`, [response.role,firstname,lastname], (err, result) =>{
-            err ? console.error(err) : console.log (`Updated ${response.employeename}'s role.`)
-        })
-        loadMainMenu();
-    })
+    const [firstname,lastname] = response.employeename.split(" ")
+    let idquery = await db.promise().query(`SELECT id FROM roles WHERE title = ?`, response.role)
+    if (idquery[0].length===0){
+        throw Error('There is no role matching this name in the database. Please add this role before referencing it with an employee.')
+    }
+    idquery = idquery[0][0].id
+    await db.promise().query(`UPDATE employee SET role_id = ? WHERE first_name = ? AND last_name = ?`, [idquery,firstname,lastname])
+    console.log (`Updated ${response.employeename}'s role.`)
+    loadMainMenu();
 }
 
 loadMainMenu()

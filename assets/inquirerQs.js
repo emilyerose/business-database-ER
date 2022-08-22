@@ -21,7 +21,8 @@ const normalizeCaps = (response) => {
     response = response.trim();
     response = response.toLowerCase();
     const words = response.split(' ');
-    return words.map(word => word[0].toUpperCase() + word.substr(1)).join(' ')
+    if (response) return words.map(word => word[0].toUpperCase() + word.substr(1)).join(' ')
+    else return '';
 }
 
 exports.menuPrompt = [{
@@ -32,7 +33,7 @@ exports.menuPrompt = [{
 }]
 
 exports.updateEmployeeRolePrompt = (employeeList) => {
-    [{
+    return [{
         type: 'list',
         name: 'employeename',
         message: 'Whose role would you like to update?',
