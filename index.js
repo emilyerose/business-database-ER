@@ -42,6 +42,9 @@ function loadMainMenu() {
             case 'Update Employee Role':
                 updateRole();
                 break;
+            case 'View Department Budgets':
+                seeDeptBudget();
+                break;
         }
     })
 }
@@ -65,9 +68,10 @@ function seeRoles() {
 
 function seeEmployees() {
     //this doesn't get the manager name (if it exists) because hurgleblurgle
-    db.query(`SELECT employee.id, employee.first_name, employee.last_name, roles.title, roles.salary, department.dept_name AS department FROM
+    db.query(`SELECT employee.id, employee.first_name, employee.last_name, roles.title, roles.salary, department.dept_name AS department, CONCAT(manager.first_name, ' ', manager.last_name) AS manager FROM
     employee LEFT JOIN roles ON employee.role_id = roles.id
-    LEFT JOIN department ON roles.department_id = department.id`, (err, result) => {
+    LEFT JOIN department ON roles.department_id = department.id
+    LEFT JOIN employee manager ON employee.manager_id = manager.id`, (err, result) => {
         err ? console.error(err) : console.table(result)
         loadMainMenu();
     })
@@ -152,6 +156,16 @@ async function addEmployee() {
 
 }
 
+function seeDeptBudget() {
+    db.query(`SELECT department.dept_name AS department, SUM(salary) AS budget FROM
+    (employee LEFT JOIN roles ON employee.role_id = roles.id
+    LEFT JOIN department ON roles.department_id = department.id
+    LEFT JOIN employee manager ON employee.manager_id = manager.id) GROUP BY department.id;`, (err,result) => {
+        err ? console.error(err) : console.table(result)
+    })
+    loadMainMenu();
+}
+
 async function updateRole() {
     //need to promisify this too
     //get all employees (arr of objects)
@@ -171,7 +185,6 @@ async function updateRole() {
     //push each employee's first and last name as a string to employeeList
     employees[0].forEach(entry => employeeList.push(`${entry.first_name} ${entry.last_name}`))
     const updateEmpQs = promptQs.updateEmployeeRolePrompt(employeeList);
-    console.log(updateEmpQs)
     const response = await inquirer.prompt(updateEmpQs)
         //if anyone has two word first or last names this gets messed up but i don't see any other way to do it given the constraints
     const [firstname,lastname] = response.employeename.split(" ")
