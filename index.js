@@ -156,13 +156,12 @@ async function addEmployee() {
 
 }
 
-function seeDeptBudget() {
-    db.query(`SELECT department.dept_name AS department, SUM(salary) AS budget FROM
+async function seeDeptBudget() {
+    result = await db.promise().query(`SELECT department.dept_name AS department, SUM(salary) AS budget FROM
     (employee LEFT JOIN roles ON employee.role_id = roles.id
     LEFT JOIN department ON roles.department_id = department.id
-    LEFT JOIN employee manager ON employee.manager_id = manager.id) GROUP BY department.id;`, (err,result) => {
-        err ? console.error(err) : console.table(result)
-    })
+    LEFT JOIN employee manager ON employee.manager_id = manager.id) GROUP BY department.id;`)
+    console.table(result[0])
     loadMainMenu();
 }
 
